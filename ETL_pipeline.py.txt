@@ -1,0 +1,103 @@
+"""
+Value-Based Care ETL Pipeline
+Author: Sravya Amrutha
+"""
+
+import pandas as pd
+from pathlib import Path
+
+
+# -----------------------------
+# Step 1: Load Data
+# -----------------------------
+def load_data(file_path: str) -> pd.DataFrame:
+    """Load healthcare claims data."""
+    print("Loading data...")
+    df = pd.read_csv(file_path)
+    print(f"Records loaded: {len(df)}")
+    return df
+
+
+# -----------------------------
+# Step 2: Data Cleaning
+# -----------------------------
+def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Perform basic data cleaning."""
+    print("Cleaning data...")
+
+    df = df.drop_duplicates()
+    df = df.dropna()
+
+    # Convert dates
+    df["admission_date"] = pd.to_datetime(df["admission_date"])
+    df["discharge_date"] = pd.to_datetime(df["discharge_date"])
+
+    return df
+
+
+# -----------------------------
+# Step 3: Feature Engineering
+# -----------------------------
+def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Create derived metrics."""
+    print("Engineering features...")
+
+    df["cost_per_day"] = df["total_cost"] / df["length_of_stay"]
+
+    df["high_cost_flag"] = df["total_cost"].apply(
+        lambda x: 1 if x > 12000 else 0
+    )
+
+    return df
+
+
+# -----------------------------
+# Step 4: Provider KPI Summary
+# -----------------------------
+def create_provider_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate provider-level KPIs."""
+    print("Creating provider summary...")
+
+    summary = (
+        df.groupby("provider_id")
+        .agg(
+            total_patients=("patient_id", "nunique"),
+            avg_los=("length_of_stay", "mean"),
+            total_cost=("total_cost", "sum"),
+            readmission_rate=("readmitted_flag", "mean"),
+        )
+        .reset_index()
+    )
+
+    return summary
+
+
+# -----------------------------
+# Step 5: Save Output
+# -----------------------------
+def save_output(df: pd.DataFrame, output_path: str):
+    """Save processed data."""
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
+    print(f"Output saved to: {output_path}")
+
+
+# -----------------------------
+# Main Pipeline
+# -----------------------------
+def run_pipeline():
+    input_file = "data/healthcare_claims.csv"
+    output_file = "data/processed/provider_summary.csv"
+
+    df = load_data(input_file)
+    df = clean_data(df)
+    df = engineer_features(df)
+
+    provider_summary = create_provider_summary(df)
+    save_output(provider_summary, output_file)
+
+    print("ETL pipeline completed successfully.")
+
+
+if __name__ == "__main__":
+    run_pipeline()
