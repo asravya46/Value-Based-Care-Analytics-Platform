@@ -1,0 +1,10 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.read_csv("../data/healthcare_claims.csv")
+
+print(df.head())
+
+df.groupby("provider_id")["total_cost"].sum().plot(kind="bar")
+plt.title("Total Cost by Provider")
+plt.show()
